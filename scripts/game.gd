@@ -51,12 +51,15 @@ var restart_button: Button
 var upgrade_button: Button
 var sell_button: Button
 var tower_buttons: Dictionary = {}
+var selection_ring: MeshInstance3D
+var wave_spawned := 0
 
 func _ready() -> void:
 	_build_world()
 	_build_path()
 	_build_pads()
 	_build_camera()
+	_build_selection_ring()
 	_build_ui()
 	_update_hud()
 	_show_message("Choose a tower, then tap an empty build pad.")
@@ -152,6 +155,31 @@ func _build_pads() -> void:
 		ring.material_override = _material(Color("#f1dc9a"))
 		pad_node.add_child(ring)
 		pads.append({"position": PAD_POSITIONS[i], "node": pad_node, "tower": null})
+
+func _build_selection_ring() -> void:
+	selection_ring = MeshInstance3D.new()
+	var ring_mesh := TorusMesh.new()
+	ring_mesh.inner_radius = 0.94
+	ring_mesh.outer_radius = 1.0
+	selection_ring.mesh = ring_mesh
+	selection_ring.position.y = 0.055
+	selection_ring.material_override = _material(Color("#fff0a6"))
+	selection_ring.visible = false
+	add_child(selection_ring)
+
+func _refresh_selection_ring() -> void:
+	if not is_instance_valid(selection_ring):
+		return
+	if selected_tower.is_empty() or not is_instance_valid(selected_tower.get("node")):
+		selection_ring.visible = false
+		return
+	selection_ring.visible = true
+	var tower_node: Node3D = selected_tower["node"]
+	selection_ring.position = Vector3(tower_node.global_position.x, 0.055, tower_node.global_position.z)
+	var tower_range: float = float(selected_tower["range"])
+	var ring_mesh := selection_ring.mesh as TorusMesh
+	ring_mesh.inner_radius = maxf(0.1, tower_range - 0.07)
+	ring_mesh.outer_radius = tower_range
 
 func _build_camera() -> void:
 	var camera := Camera3D.new()
@@ -279,6 +307,7 @@ func _material(color: Color) -> StandardMaterial3D:
 func _select_tower_type(tower_name: String) -> void:
 	selected_type = tower_name
 	selected_tower = {}
+	_refresh_selection_ring()
 	_show_message("Selected %s — tap an empty stone pad." % tower_name)
 	_update_hud()
 
@@ -324,6 +353,7 @@ func _handle_board_tap(position: Vector3) -> void:
 		_place_tower(nearest_pad)
 	else:
 		selected_tower = pad["tower"]
+		_refresh_selection_ring()
 		_show_message("%s tower — level %d" % [selected_tower["type"], selected_tower["level"]])
 		_update_hud()
 
@@ -358,14 +388,44 @@ func _place_tower(pad_index: int) -> void:
 	shaft.material_override = _material(data["color"].darkened(0.2))
 	tower_node.add_child(shaft)
 
-	var crown := MeshInstance3D.new()
-	var crown_mesh := SphereMesh.new()
-	crown_mesh.radius = 0.34
-	crown_mesh.height = 0.58
-	crown.mesh = crown_mesh
-	crown.position.y = 1.12
-	crown.material_override = _material(data["color"])
-	tower_node.add_child(crown)
+	if selected_type == "Cannon":
+		var barrel := MeshInstance3D.new()
+		var barrel_mesh := CylinderMesh.new()
+		barrel_mesh.top_radius = 0.13
+		barrel_mesh.bottom_radius = 0.19
+		barrel_mesh.height = 0.92
+		barrel.mesh = barrel_mesh
+		barrel.position = Vector3(0.0, 1.08, -0.28)
+		barrel.rotation.x = PI * 0.5
+		barrel.material_override = _material(Color("#394b50"))
+		tower_node.add_child(barrel)
+		var muzzle := MeshInstance3D.new()
+		var muzzle_mesh := TorusMesh.new()
+		muzzle_mesh.inner_radius = 0.12
+		muzzle_mesh.outer_radius = 0.17
+		muzzle.mesh = muzzle_mesh
+		muzzle.position = Vector3(0.0, 1.08, -0.72)
+		muzzle.rotation.x = PI * 0.5
+		muzzle.material_override = _material(Color("#ffcf79"))
+		tower_node.add_child(muzzle)
+	elif selected_type == "Frost":
+		var crystal := MeshInstance3D.new()
+		var crystal_mesh := PrismMesh.new()
+		crystal_mesh.size = Vector3(0.58, 0.86, 0.58)
+		crystal.mesh = crystal_mesh
+		crystal.position.y = 1.1
+		crystal.rotation.y = PI * 0.25
+		crystal.material_override = _material(Color("#b6f0ff"))
+		tower_node.add_child(crystal)
+	else:
+		var crown := MeshInstance3D.new()
+		var crown_mesh := SphereMesh.new()
+		crown_mesh.radius = 0.34
+		crown_mesh.height = 0.58
+		crown.mesh = crown_mesh
+		crown.position.y = 1.12
+		crown.material_override = _material(data["color"])
+		tower_node.add_child(crown)
 
 	var tower := {
 		"type": selected_type,
@@ -381,6 +441,7 @@ func _place_tower(pad_index: int) -> void:
 	towers.append(tower)
 	pads[pad_index]["tower"] = tower
 	selected_tower = tower
+	_refresh_selection_ring()
 	_show_message("%s tower built!" % selected_type)
 	_update_hud()
 
@@ -409,6 +470,7 @@ func _sell_selected() -> void:
 	pads[pad_index]["tower"] = null
 	towers.erase(tower)
 	selected_tower = {}
+	_refresh_selection_ring()
 	_show_message("Tower sold.")
 	_update_hud()
 
@@ -418,6 +480,7 @@ func _start_wave() -> void:
 	wave += 1
 	wave_active = true
 	spawn_remaining = 7 + wave * 2
+	wave_spawned = 0
 	spawn_timer = 0.15
 	wave_button.disabled = true
 	_show_message("Wave %d incoming!" % wave)
@@ -429,7 +492,8 @@ func _update_wave_spawning(delta: float) -> void:
 	if spawn_remaining > 0:
 		spawn_timer -= delta
 		if spawn_timer <= 0.0:
-			_spawn_enemy()
+			_spawn_enemy(wave_spawned)
+			wave_spawned += 1
 			spawn_remaining -= 1
 			spawn_timer = maxf(0.38, 0.92 - float(wave) * 0.018)
 	elif enemies.is_empty():
@@ -439,16 +503,36 @@ func _update_wave_spawning(delta: float) -> void:
 		_show_message("Wave cleared! Supply bonus +%d gold." % (45 + wave * 8))
 		_update_hud()
 
-func _spawn_enemy() -> void:
+func _spawn_enemy(spawn_index: int = -1) -> void:
+	var kind := "grunt"
+	if wave >= 2 and spawn_index >= 0 and spawn_index % 4 == 2:
+		kind = "runner"
+	if wave >= 3 and spawn_index >= 0 and spawn_index % 5 == 4:
+		kind = "brute"
+
 	var enemy := Node3D.new()
 	add_child(enemy)
 	var body := MeshInstance3D.new()
-	var mesh := SphereMesh.new()
-	mesh.radius = 0.34 if wave < 4 else 0.4
-	mesh.height = mesh.radius * 2.0
-	body.mesh = mesh
-	body.material_override = _material(Color("#d85c54") if wave % 4 != 0 else Color("#8d72d9"))
+	if kind == "brute":
+		var mesh := BoxMesh.new()
+		mesh.size = Vector3(0.78, 0.68, 0.78)
+		body.mesh = mesh
+		body.material_override = _material(Color("#8d72d9"))
+	elif kind == "runner":
+		var mesh := CapsuleMesh.new()
+		mesh.radius = 0.23
+		mesh.height = 0.82
+		body.mesh = mesh
+		body.rotation.z = PI * 0.5
+		body.material_override = _material(Color("#e7b84d"))
+	else:
+		var mesh := SphereMesh.new()
+		mesh.radius = 0.34
+		mesh.height = 0.68
+		body.mesh = mesh
+		body.material_override = _material(Color("#d85c54"))
 	enemy.add_child(body)
+
 	var eye := MeshInstance3D.new()
 	var eye_mesh := SphereMesh.new()
 	eye_mesh.radius = 0.09
@@ -457,9 +541,42 @@ func _spawn_enemy() -> void:
 	eye.position = Vector3(0.13, 0.12, -0.22)
 	eye.material_override = _material(Color("#fff2c8"))
 	enemy.add_child(eye)
+
+	var health_back := MeshInstance3D.new()
+	var health_back_mesh := BoxMesh.new()
+	health_back_mesh.size = Vector3(0.78, 0.045, 0.12)
+	health_back.mesh = health_back_mesh
+	health_back.position = Vector3(0.0, 0.57, 0.0)
+	health_back.material_override = _material(Color("#402d31"))
+	enemy.add_child(health_back)
+
+	var health_fill := MeshInstance3D.new()
+	var health_fill_mesh := BoxMesh.new()
+	health_fill_mesh.size = Vector3(0.72, 0.055, 0.09)
+	health_fill.mesh = health_fill_mesh
+	health_fill.position = Vector3(0.0, 0.60, 0.0)
+	health_fill.material_override = _material(Color("#80d77a"))
+	enemy.add_child(health_fill)
+
 	enemy.position = PATH_POINTS[0] + Vector3.UP * 0.48
 	var health := 42.0 + float(wave) * 12.0
-	enemies.append({"node": enemy, "distance": 0.0, "health": health, "max_health": health, "speed": 1.8 + float(wave) * 0.045, "slow": 0.0})
+	var speed := 1.8 + float(wave) * 0.045
+	if kind == "runner":
+		health *= 0.68
+		speed *= 1.65
+	elif kind == "brute":
+		health *= 2.8
+		speed *= 0.58
+	enemies.append({
+		"node": enemy,
+		"distance": 0.0,
+		"health": health,
+		"max_health": health,
+		"speed": speed,
+		"slow": 0.0,
+		"kind": kind,
+		"health_fill": health_fill
+	})
 
 func _position_on_path(distance: float) -> Vector3:
 	var remaining := distance
@@ -504,6 +621,8 @@ func _update_towers(delta: float) -> void:
 				target_index = i
 		if target_index >= 0:
 			var target: Dictionary = enemies[target_index]
+			var aim_direction: Vector3 = target["node"].global_position - tower_position
+			tower["node"].rotation.y = atan2(aim_direction.x, aim_direction.z)
 			_fire_projectile(tower, target)
 			tower["cooldown"] = float(tower["rate"])
 
@@ -533,6 +652,11 @@ func _update_projectiles(delta: float) -> void:
 		var step := float(shot["speed"]) * delta
 		if offset.length() <= step + 0.12:
 			target["health"] = float(target["health"]) - float(shot["damage"])
+			var health_fill: MeshInstance3D = target["health_fill"]
+			var health_ratio := clampf(float(target["health"]) / float(target["max_health"]), 0.0, 1.0)
+			health_fill.scale.x = health_ratio
+			health_fill.position.x = -0.36 * (1.0 - health_ratio)
+			_spawn_impact(destination, Color("#79dcff") if shot["slow"] else Color("#ffe09a"))
 			if shot["slow"]:
 				target["slow"] = 1.1
 			if float(target["health"]) <= 0.0:
@@ -543,6 +667,19 @@ func _update_projectiles(delta: float) -> void:
 			projectiles.remove_at(i)
 		else:
 			node.global_position += offset.normalized() * step
+
+func _spawn_impact(position: Vector3, tint: Color) -> void:
+	var flash := MeshInstance3D.new()
+	var flash_mesh := SphereMesh.new()
+	flash_mesh.radius = 0.16
+	flash_mesh.height = 0.32
+	flash.mesh = flash_mesh
+	flash.position = position
+	flash.material_override = _material(tint)
+	add_child(flash)
+	var tween := create_tween()
+	tween.tween_property(flash, "scale", Vector3.ONE * 2.1, 0.16)
+	tween.tween_callback(flash.queue_free)
 
 func _remove_enemy(index: int, reward: bool) -> void:
 	var enemy: Dictionary = enemies[index]
@@ -581,6 +718,7 @@ func _update_hud() -> void:
 	if not is_instance_valid(hud_label):
 		return
 	hud_label.text = "✦ %d     ♥ %d     WAVE %d     ENEMIES %d" % [gold, lives, wave, enemies.size()]
+	_refresh_selection_ring()
 	if is_instance_valid(upgrade_button):
 		upgrade_button.disabled = selected_tower.is_empty()
 	if is_instance_valid(sell_button):
