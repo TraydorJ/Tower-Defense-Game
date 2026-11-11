@@ -40,6 +40,10 @@ jobs:
         run: |
           .godot-ci/Godot_v4.7.2-stable_linux.x86_64 --headless --path . --quit-after 3
 
+      - name: Run gameplay regression smoke tests
+        run: |
+          .godot-ci/Godot_v4.7.2-stable_linux.x86_64 --headless --path . --script res://tests/gameplay_smoke.gd
+
       - name: Upload project source snapshot
         uses: actions/upload-artifact@v4
         with:
