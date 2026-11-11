@@ -19,9 +19,18 @@ An original, stylized 3D tower-defense game designed for touch-first Android pla
 - Cloud CI must parse/import the project and run a headless smoke test before a change is called validated.
 - Android export will be added after the first Godot project validation and export-template/SDK setup are verified.
 
-## Next milestones
-1. Foundation: project opens, scene loads, board renders, input and basic wave loop.
-2. Combat polish: health bars, impact particles, tower aiming, readable range previews, enemy variety.
-3. Level design: multiple maps, terrain dressing, path choices and strategic build zones.
-4. Progression: tower branches, upgrades, unlocks, campaign and boss encounters.
-5. Android release pipeline: signed test APK/AAB, device testing, performance and accessibility pass.
+## Milestones
+
+1. **Foundation — complete:** project opens, scene loads, board renders, touch input, three tower roles, waves, upgrades/selling, pause/restart and cloud Android debug export.
+2. **Combat readability — in progress:** selected-tower attack range ring, distinct Cannon/Frost/Archer silhouettes, enemy health bars, impact flashes, tower aiming, and Grunt/Runner/Brute enemy roles.
+3. **Battlefield and level design:** authored terrain dressing, map identity, multiple routes and strategic build zones.
+4. **Progression and content:** meaningful tower upgrade branches, persistent unlocks, campaign structure, elite enemies and original boss encounters.
+5. **Release readiness:** balance pass, Android device/performance testing, accessibility options, signed release build and store preparation.
+
+## Current combat roles
+- **Grunt:** baseline enemy with standard health and movement.
+- **Runner:** faster, less durable enemy introduced from wave 2.
+- **Brute:** slow, high-health enemy introduced from wave 3.
+- **Archer:** general-purpose single-target damage.
+- **Cannon:** slower, heavy-hit tower with a visible barrel silhouette.
+- **Frost:** support tower that applies a movement slow.
