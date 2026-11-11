@@ -1,6 +1,5 @@
 extends Node3D
 
-const BOARD_SIZE := Vector2(24.0, 16.0)
 const STARTING_GOLD := 260
 const STARTING_LIVES := 20
 const TOWER_DATA := {
@@ -47,6 +46,8 @@ var game_over := false
 var hud_label: Label
 var message_label: Label
 var wave_button: Button
+var pause_button: Button
+var restart_button: Button
 var upgrade_button: Button
 var sell_button: Button
 var tower_buttons: Dictionary = {}
@@ -196,9 +197,13 @@ func _build_ui() -> void:
 	hud_label.add_theme_font_size_override("font_size", 20)
 	hud_label.add_theme_color_override("font_color", Color("#f4f2dc"))
 	top_row.add_child(hud_label)
-	var pause_button := _make_button("Ⅱ", Color("#48615b"))
+	pause_button = _make_button("Ⅱ", Color("#48615b"))
 	pause_button.pressed.connect(_toggle_pause)
 	top_row.add_child(pause_button)
+	restart_button = _make_button("RESTART", Color("#e2a94b"))
+	restart_button.visible = false
+	restart_button.pressed.connect(_restart_game)
+	top_row.add_child(restart_button)
 
 	var bottom := PanelContainer.new()
 	bottom.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
@@ -469,10 +474,11 @@ func _position_on_path(distance: float) -> Vector3:
 func _update_enemies(delta: float) -> void:
 	for i in range(enemies.size() - 1, -1, -1):
 		var enemy: Dictionary = enemies[i]
+		var movement_factor := 1.0
 		if enemy["slow"] > 0.0:
 			enemy["slow"] = maxf(0.0, float(enemy["slow"]) - delta)
-		else:
-			enemy["distance"] = float(enemy["distance"]) + float(enemy["speed"]) * delta
+			movement_factor = 0.55
+		enemy["distance"] = float(enemy["distance"]) + float(enemy["speed"]) * movement_factor * delta
 		if float(enemy["distance"]) >= total_path_length:
 			_remove_enemy(i, false)
 			lives -= 1
@@ -548,16 +554,23 @@ func _remove_enemy(index: int, reward: bool) -> void:
 
 func _toggle_pause() -> void:
 	get_tree().paused = not get_tree().paused
+	pause_button.text = "▶" if get_tree().paused else "Ⅱ"
 	if get_tree().paused:
-		_show_message("Paused — tap Ⅱ to resume.")
+		_show_message("Paused — tap ▶ to resume.")
 	else:
 		_show_message("Defend the greenlands!")
+
+func _restart_game() -> void:
+	get_tree().paused = false
+	get_tree().reload_current_scene()
 
 func _end_game() -> void:
 	game_over = true
 	wave_active = false
 	wave_button.disabled = true
-	_show_message("The bastion has fallen. Refresh to try again.")
+	pause_button.disabled = true
+	restart_button.visible = true
+	_show_message("The bastion has fallen. Tap RESTART to try again.")
 	_update_hud()
 
 func _show_message(text: String) -> void:
