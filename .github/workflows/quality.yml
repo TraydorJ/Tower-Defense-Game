@@ -1,0 +1,25 @@
+name: Quality Check
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  static-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Verify game entry points
+        run: |
+          test -s index.html
+          test -s manifest.webmanifest
+          test -s sw.js
+      - name: Validate manifest JSON
+        run: node -e "JSON.parse(require('fs').readFileSync('manifest.webmanifest','utf8'))"
+      - name: Check document references
+        run: grep -q 'manifest.webmanifest' index.html
