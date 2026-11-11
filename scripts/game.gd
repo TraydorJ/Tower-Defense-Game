@@ -2,6 +2,7 @@ extends Node3D
 
 const STARTING_GOLD := 260
 const STARTING_LIVES := 20
+const PAD_PICK_RADIUS := 1.05
 const TOWER_DATA := {
 	"Archer": {"cost": 80, "range": 4.6, "damage": 12.0, "rate": 0.72, "color": Color("#7ed957")},
 	"Cannon": {"cost": 125, "range": 3.7, "damage": 34.0, "rate": 1.45, "color": Color("#ff9f43")},
@@ -346,7 +347,7 @@ func _handle_board_tap(position: Vector3) -> void:
 		if distance < nearest_distance:
 			nearest_distance = distance
 			nearest_pad = i
-	if nearest_pad < 0 or nearest_distance > 0.82:
+	if nearest_pad < 0 or nearest_distance > PAD_PICK_RADIUS:
 		return
 	var pad: Dictionary = pads[nearest_pad]
 	if pad["tower"] == null:
@@ -427,6 +428,15 @@ func _place_tower(pad_index: int) -> void:
 		crown.material_override = _material(data["color"])
 		tower_node.add_child(crown)
 
+	var trim := MeshInstance3D.new()
+	var trim_mesh := TorusMesh.new()
+	trim_mesh.inner_radius = 0.29
+	trim_mesh.outer_radius = 0.36
+	trim.mesh = trim_mesh
+	trim.position.y = 0.91
+	trim.material_override = _material(data["color"].lightened(0.28))
+	tower_node.add_child(trim)
+
 	var tower := {
 		"type": selected_type,
 		"level": 1,
@@ -441,6 +451,9 @@ func _place_tower(pad_index: int) -> void:
 	towers.append(tower)
 	pads[pad_index]["tower"] = tower
 	selected_tower = tower
+	tower_node.scale = Vector3.ONE * 0.72
+	var build_tween := create_tween()
+	build_tween.tween_property(tower_node, "scale", Vector3.ONE, 0.2).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	_refresh_selection_ring()
 	_show_message("%s tower built!" % selected_type)
 	_update_hud()
@@ -533,6 +546,26 @@ func _spawn_enemy(spawn_index: int = -1) -> void:
 		body.material_override = _material(Color("#d85c54"))
 	enemy.add_child(body)
 
+	var armor_parts := 0
+	if kind == "brute":
+		for side in [-1.0, 1.0]:
+			var plate := MeshInstance3D.new()
+			var plate_mesh := BoxMesh.new()
+			plate_mesh.size = Vector3(0.22, 0.42, 0.52)
+			plate.mesh = plate_mesh
+			plate.position = Vector3(side * 0.39, 0.08, 0.0)
+			plate.material_override = _material(Color("#594b8c"))
+			enemy.add_child(plate)
+			armor_parts += 1
+		var crest := MeshInstance3D.new()
+		var crest_mesh := PrismMesh.new()
+		crest_mesh.size = Vector3(0.34, 0.32, 0.32)
+		crest.mesh = crest_mesh
+		crest.position = Vector3(0.0, 0.47, 0.0)
+		crest.material_override = _material(Color("#c5a7ff"))
+		enemy.add_child(crest)
+		armor_parts += 1
+
 	var eye := MeshInstance3D.new()
 	var eye_mesh := SphereMesh.new()
 	eye_mesh.radius = 0.09
@@ -575,6 +608,9 @@ func _spawn_enemy(spawn_index: int = -1) -> void:
 		"speed": speed,
 		"slow": 0.0,
 		"kind": kind,
+		"body": body,
+		"armor_parts": armor_parts,
+		"animation_phase": randf() * TAU,
 		"health_fill": health_fill
 	})
 
@@ -602,7 +638,12 @@ func _update_enemies(delta: float) -> void:
 			if lives <= 0:
 				_end_game()
 			continue
-		enemy["node"].position = _position_on_path(float(enemy["distance"])) + Vector3.UP * 0.48
+		var enemy_node: Node3D = enemy["node"]
+		enemy_node.position = _position_on_path(float(enemy["distance"])) + Vector3.UP * 0.48
+		enemy["animation_phase"] = float(enemy["animation_phase"]) + delta * (7.0 if enemy["kind"] == "runner" else 4.0)
+		var body_node: Node3D = enemy["body"]
+		body_node.position.y = sin(float(enemy["animation_phase"])) * 0.055
+		body_node.rotation.z = sin(float(enemy["animation_phase"]) * 0.5) * 0.07
 
 func _update_towers(delta: float) -> void:
 	for tower in towers:
