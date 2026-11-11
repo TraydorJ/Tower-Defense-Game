@@ -18,6 +18,7 @@ func _run() -> void:
 	game._place_tower(0)
 	_check(game.towers.size() == 1, "Tower placement should create one tower")
 	_check(game.gold == 180, "Archer placement should deduct 80 gold")
+	_check(game.selection_ring.visible, "Selected tower should show its attack range")
 
 	game._spawn_enemy()
 	_check(game.enemies.size() == 1, "Enemy spawn should create one enemy")
@@ -27,6 +28,7 @@ func _run() -> void:
 	_check(game.projectiles.size() == 1, "Tower should acquire a target and fire")
 	game._update_projectiles(1.0)
 	_check(float(game.enemies[0]["health"]) < health_before, "Projectile should damage its target")
+	_check(float(game.enemies[0]["health_fill"].scale.x) < 1.0, "Enemy health bar should reflect damage")
 
 	game._upgrade_selected()
 	_check(int(game.selected_tower["level"]) == 2, "Upgrade should increase tower level")
@@ -46,6 +48,15 @@ func _run() -> void:
 	game._update_enemies(0.01)
 	_check(game.lives == remaining_lives - 1, "An escaped enemy should cost one life")
 	_check(game.enemies.size() == 1, "Escaped enemy should be removed")
+
+	game.wave = 3
+	game._spawn_enemy(2)
+	_check(game.enemies.back()["kind"] == "runner", "Wave three should include a fast runner")
+	var runner_speed: float = game.enemies.back()["speed"]
+	game._spawn_enemy(4)
+	_check(game.enemies.back()["kind"] == "brute", "Wave three should include a heavy brute")
+	_check(float(game.enemies.back()["speed"]) < runner_speed, "Brutes should move slower than runners")
+	_check(float(game.enemies.back()["max_health"]) > float(game.enemies[-2]["max_health"]), "Brutes should have substantially more health")
 
 	game.queue_free()
 	print("GAMEPLAY_SMOKE_TEST: PASS")
