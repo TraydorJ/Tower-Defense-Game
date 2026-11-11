@@ -1,0 +1,1 @@
+{"name":"Frontier Defense","short_name":"Frontier Defense","description":"A tactical mobile-first tower defense game.","start_url":"./","scope":"./","display":"standalone","orientation":"portrait","background_color":"#101c29","theme_color":"#101c29","icons":[{"src":"icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}]}
