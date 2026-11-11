@@ -174,6 +174,7 @@ func _build_ui() -> void:
 	var layer := CanvasLayer.new()
 	add_child(layer)
 	var root := Control.new()
+	root.process_mode = Node.PROCESS_MODE_ALWAYS
 	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	root.mouse_filter = Control.MOUSE_FILTER_PASS
 	layer.add_child(root)
