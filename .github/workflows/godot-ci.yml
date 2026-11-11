@@ -1,0 +1,53 @@
+name: Godot 3D Foundation
+
+on:
+  push:
+    branches: [godot-3d-foundation]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: godot-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Import and headless smoke test (Godot 4.7.2)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Download official Godot 4.7.2
+        run: |
+          curl --fail --location --retry 3 \
+            https://github.com/godotengine/godot/releases/download/4.7.2-stable/Godot_v4.7.2-stable_linux.x86_64.zip \
+            --output godot.zip
+          unzip -q godot.zip -d .godot-ci
+          chmod +x .godot-ci/Godot_v4.7.2-stable_linux.x86_64
+          .godot-ci/Godot_v4.7.2-stable_linux.x86_64 --version
+
+      - name: Validate project and import resources
+        run: |
+          .godot-ci/Godot_v4.7.2-stable_linux.x86_64 --headless --editor --path . --quit
+
+      - name: Run headless scene smoke test
+        run: |
+          .godot-ci/Godot_v4.7.2-stable_linux.x86_64 --headless --path . --quit-after 3
+
+      - name: Upload project source snapshot
+        uses: actions/upload-artifact@v4
+        with:
+          name: verdant-bastion-godot-source
+          path: |
+            project.godot
+            scenes/
+            scripts/
+            docs/PROJECT_DIRECTION.md
+          if-no-files-found: error
+          retention-days: 14
