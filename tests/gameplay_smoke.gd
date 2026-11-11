@@ -55,6 +55,9 @@ func _run() -> void:
 	var runner_speed: float = game.enemies.back()["speed"]
 	game._spawn_enemy(4)
 	_check(game.enemies.back()["kind"] == "brute", "Wave three should include a heavy brute")
+	_check(int(game.enemies.back()["armor_parts"]) == 3, "Brutes should have three visible armor pieces")
+	_check(game.enemies.back()["body"] is MeshInstance3D, "Enemy should expose an animated body mesh")
+	_check(game.PAD_PICK_RADIUS > 0.82, "Build pad touch target should be more forgiving")
 	_check(float(game.enemies.back()["speed"]) < runner_speed, "Brutes should move slower than runners")
 	_check(float(game.enemies.back()["max_health"]) > float(game.enemies[-2]["max_health"]), "Brutes should have substantially more health")
 
